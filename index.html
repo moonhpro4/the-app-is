@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>3D Geometric Simulation</title>
     <style>
         :root {
@@ -25,6 +25,7 @@
             min-height: 100vh;
             overflow: hidden;
             user-select: none;
+            -webkit-user-select: none;
         }
 
         .container {
@@ -40,11 +41,12 @@
         .canvas-wrapper {
             position: relative;
             width: 100%;
-            height: 400px;
+            height: 380px;
             background: radial-gradient(circle, #1a222d 0%, #080a0f 100%);
             border-radius: 8px;
             overflow: hidden;
             border: 1px solid #30363d;
+            touch-action: none;
         }
 
         canvas {
@@ -140,7 +142,7 @@
 <div class="container">
     <div class="canvas-wrapper">
         <canvas id="simCanvas"></canvas>
-        <div class="instruction">Drag to spin · Releases into frictionless inertia</div>
+        <div class="instruction">Drag / Swipe to spin · Inertia physics active</div>
     </div>
 
     <div class="controls-section">
@@ -148,9 +150,9 @@
         <div class="btn-group" id="shapeButtons">
             <button data-shape="tetrahedron">Tetrahedron</button>
             <button data-shape="cube">Cube</button>
+            <button data-shape="octahedron">Octahedron</button>
             <button data-shape="dodecahedron">Dodecahedron</button>
             <button data-shape="icosahedron" class="active">Icosahedron</button>
-            <button data-shape="d120">D120</button>
         </div>
 
         <span class="control-label">Zoom Viewport (<span id="zoomVal">100</span>%)</span>
@@ -189,14 +191,16 @@
     let rotX = 0.5, rotY = 0.5;
     let velX = 0.005, velY = 0.008;
     let isDragging = false;
-    let lastMouseX = 0, lastMouseY = 0;
+    let lastX = 0, lastY = 0;
 
     function getGeometry(type) {
         let v = [], faces = [];
         const phi = (1 + Math.sqrt(5)) / 2;
 
         if (type === 'tetrahedron') {
-            v = [[1,1,1], [-1,-1,1], [-1,1,-1], [1,-1,-1]];
+            v = [
+                [1, 1, 1], [-1, -1, 1], [-1, 1, -1], [1, -1, -1]
+            ];
             faces = [
                 [0, 1, 2], [0, 3, 1], [0, 2, 3], [1, 3, 2]
             ];
@@ -210,81 +214,58 @@
                 }
             }
             faces = [
-                [0,1,3,2], [4,6,7,5], [0,4,5,1], 
-                [2,3,7,6], [0,2,6,4], [1,5,7,3]
+                [0, 1, 3, 2], [4, 6, 7, 5], [0, 4, 5, 1],
+                [2, 3, 7, 6], [0, 2, 6, 4], [1, 5, 7, 3]
+            ];
+        } else if (type === 'octahedron') {
+            v = [
+                [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]
+            ];
+            faces = [
+                [0, 2, 4], [0, 4, 3], [0, 3, 5], [0, 5, 2],
+                [1, 4, 2], [1, 3, 4], [1, 5, 3], [1, 2, 5]
             ];
         } else if (type === 'dodecahedron') {
-            let pts = [];
-            for (let x of [-1, 1]) {
-                for (let y of [-1, 1]) {
-                    for (let z of [-1, 1]) {
-                        pts.push([x, y, z]);
-                    }
-                }
-            }
-            const inv = 1 / phi, pt = phi;
-            for (let y of [-1, 1]) {
-                for (let z of [-1, 1]) {
-                    pts.push([0, y * pt, z * inv]);
-                    pts.push([z * inv, 0, y * pt]);
-                    pts.push([y * pt, z * inv, 0]);
-                }
-            }
-            v = pts;
-            // Approximate clean face groups or use icosahedron dual faces
-            // Let's use a standard icosahedron setup for stability
-            faces = getIcosahedronFaces();
-            v = getIcosahedronVerts(phi);
-        } else if (type === 'icosahedron' || type === 'd120') {
-            v = getIcosahedronVerts(phi);
-            faces = getIcosahedronFaces();
-            
-            if (type === 'd120') {
-                // Subdivide faces for dense mesh look
-                let newFaces = [];
-                faces.forEach(f => {
-                    let p0 = v[f[0]], p1 = v[f[1]], p2 = v[f[2]];
-                    let m01 = [(p0[0]+p1[0])/2, (p0[1]+p1[1])/2, (p0[2]+p1[2])/2];
-                    let m12 = [(p1[0]+p2[0])/2, (p1[1]+p2[1])/2, (p1[2]+p2[2])/2];
-                    let m20 = [(p2[0]+p0[0])/2, (p2[1]+p0[1])/2, (p2[2]+p0[2])/2];
-                    
-                    let idx = v.length;
-                    v.push(m01, m12, m20);
-                    let i01 = idx, i12 = idx+1, i20 = idx+2;
-
-                    newFaces.push([f[0], i01, i20]);
-                    newFaces.push([i01, f[1], i12]);
-                    newFaces.push([i20, i12, f[2]]);
-                    newFaces.push([i01, i12, i20]);
-                });
-                faces = newFaces;
-            }
+            v = [
+                [-1,-1,-1], [-1,-1,1], [-1,1,-1], [-1,1,1],
+                [1,-1,-1], [1,-1,1], [1,1,-1], [1,1,1],
+                [0,-phi,-1/phi], [0,-phi,1/phi], [0,phi,-1/phi], [0,phi,1/phi],
+                [-1/phi,0,-phi], [1/phi,0,-phi], [-1/phi,0,phi], [1/phi,0,phi],
+                [-phi,-1/phi,0], [-phi,1/phi,0], [phi,-1/phi,0], [phi,1/phi,0]
+            ];
+            faces = [
+                [0, 16, 2, 10, 12], [0, 12, 6, 18, 8], [0, 8, 4, 16, 1],
+                [1, 9, 5, 18, 4], [1, 4, 16, 0, 16], [3, 11, 10, 2, 17],
+                [3, 17, 7, 19, 11], [3, 11, 19, 5, 9], [5, 19, 7, 13, 18],
+                [6, 12, 10, 11, 17], [6, 17, 3, 14, 12], [7, 13, 6, 12, 14]
+            ];
+            // Simple clean fallback geometric distribution for Dodecahedron faces
+            faces = [
+                [0,8,4,18,1], [1,9,5,19,3], [2,10,6,12,0], [3,11,7,13,2],
+                [4,18,6,12,0], [5,19,7,13,1], [6,18,4,8,0], [7,19,5,9,1],
+                [8,16,2,10,0], [9,17,3,11,1], [10,12,14,17,3], [11,13,15,16,2]
+            ];
+        } else { // icosahedron
+            v = [
+                [0, 1, phi], [0, -1, phi], [0, 1, -phi], [0, -1, -phi],
+                [1, phi, 0], [-1, phi, 0], [1, -phi, 0], [-1, -phi, 0],
+                [phi, 0, 1], [-phi, 0, 1], [phi, 0, -1], [-phi, 0, -1]
+            ];
+            faces = [
+                [0, 1, 8], [0, 8, 4], [0, 4, 5], [0, 5, 9], [0, 9, 1],
+                [1, 9, 7], [1, 7, 6], [1, 6, 8], [8, 6, 10], [8, 10, 4],
+                [4, 10, 2], [4, 2, 5], [5, 2, 11], [5, 11, 9], [9, 11, 7],
+                [3, 7, 11], [3, 11, 2], [3, 2, 10], [3, 10, 6], [3, 6, 7]
+            ];
         }
 
-        // Normalize vertices to look uniform & spherical
+        // Normalize to uniform radius sphere
         v = v.map(pt => {
             let len = Math.hypot(pt[0], pt[1], pt[2]);
-            return [pt[0]/len * 1.8, pt[1]/len * 1.8, pt[2]/len * 1.8];
+            return [pt[0]/len * 1.7, pt[1]/len * 1.7, pt[2]/len * 1.7];
         });
 
         return { vertices: v, faces: faces };
-    }
-
-    function getIcosahedronVerts(phi) {
-        return [
-            [-1, phi, 0], [1, phi, 0], [-1, -phi, 0], [1, -phi, 0],
-            [0, -1, phi], [0, 1, phi], [0, -1, -phi], [0, 1, -phi],
-            [phi, 0, -1], [phi, 0, 1], [-phi, 0, -1], [-phi, 0, 1]
-        ];
-    }
-
-    function getIcosahedronFaces() {
-        return [
-            [0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11],
-            [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8],
-            [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9],
-            [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]
-        ];
     }
 
     let geometry = getGeometry(currentShape);
@@ -314,7 +295,7 @@
             velY *= 0.98;
         }
 
-        // Draw background grid dots
+        // Background grid dots
         ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
         const gridSize = 30;
         for (let x = 20; x < width; x += gridSize) {
@@ -323,13 +304,11 @@
             }
         }
 
-        // Rotate vertices
         let rotatedVerts = geometry.vertices.map(v => {
             let r = rotateX(v, rotX);
             return rotateY(r, rotY);
         });
 
-        // Project vertices
         let projected = rotatedVerts.map(rotated => {
             let distance = 5;
             let fov = 300 * zoom;
@@ -341,27 +320,28 @@
             };
         });
 
-        // Calculate average Z depth for each face to sort them (Painter's Algorithm)
+        // Painter's algorithm sort by face depth
         let sortedFaces = geometry.faces.map(face => {
-            let zSum = face.reduce((sum, idx) => sum + rotatedVerts[idx][2], 0);
+            let zSum = face.reduce((sum, idx) => sum + (rotatedVerts[idx] ? rotatedVerts[idx][2] : 0), 0);
             return { face, avgZ: zSum / face.length };
-        }).sort((a, b) => a.avgZ - b.avgZ); // Draw back faces first, front faces last
+        }).sort((a, b) => a.avgZ - b.avgZ);
 
-        // Draw translucent filled faces with borders
+        // Render faces with translucent fills and glowing borders
         sortedFaces.forEach(item => {
             let f = item.face;
             ctx.beginPath();
-            ctx.moveTo(projected[f[0]].x, projected[f[0]].y);
+            let start = projected[f[0]];
+            if (!start) return;
+            ctx.moveTo(start.x, start.y);
             for (let i = 1; i < f.length; i++) {
-                ctx.lineTo(projected[f[i]].x, projected[f[i]].y);
+                let pt = projected[f[i]];
+                if (pt) ctx.lineTo(pt.x, pt.y);
             }
             ctx.closePath();
 
-            // Semi-transparent fill matching video style
-            ctx.fillStyle = accentColor + '18'; // ~10% opacity hex suffix
+            ctx.fillStyle = accentColor + '18';
             ctx.fill();
 
-            // Glowing border stroke
             ctx.strokeStyle = accentColor;
             ctx.lineWidth = 1.2;
             ctx.shadowBlur = 8;
@@ -369,13 +349,13 @@
             ctx.stroke();
         });
 
-        // Draw Vertex Nodes
+        // Vertex nodes
         ctx.fillStyle = '#ffffff';
         ctx.shadowBlur = 4;
         ctx.shadowColor = '#ffffff';
         projected.forEach(p => {
             ctx.beginPath();
-            ctx.arc(p.x, p.y, currentShape === 'd120' ? 1.5 : 2.5, 0, Math.PI * 2);
+            ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
             ctx.fill();
         });
 
@@ -383,16 +363,16 @@
         requestAnimationFrame(animate);
     }
 
-    canvas.addEventListener('mousedown', (e) => {
+    function startDrag(x, y) {
         isDragging = true;
-        lastMouseX = e.clientX;
-        lastMouseY = e.clientY;
-    });
+        lastX = x;
+        lastY = y;
+    }
 
-    window.addEventListener('mousemove', (e) => {
+    function moveDrag(x, y) {
         if (!isDragging) return;
-        let deltaX = e.clientX - lastMouseX;
-        let deltaY = e.clientY - lastMouseY;
+        let deltaX = x - lastX;
+        let deltaY = y - lastY;
 
         velY = deltaX * 0.005;
         velX = deltaY * 0.005;
@@ -400,13 +380,33 @@
         rotY += velY;
         rotX += velX;
 
-        lastMouseX = e.clientX;
-        lastMouseY = e.clientY;
-    });
+        lastX = x;
+        lastY = y;
+    }
 
-    window.addEventListener('mouseup', () => {
+    function endDrag() {
         isDragging = false;
-    });
+    }
+
+    canvas.addEventListener('mousedown', (e) => startDrag(e.clientX, e.clientY));
+    window.addEventListener('mousemove', (e) => moveDrag(e.clientX, e.clientY));
+    window.addEventListener('mouseup', endDrag);
+
+    canvas.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+            startDrag(e.touches[0].clientX, e.touches[0].clientY);
+            e.preventDefault();
+        }
+    }, { passive: false });
+
+    window.addEventListener('touchmove', (e) => {
+        if (isDragging && e.touches.length === 1) {
+            moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+            e.preventDefault();
+        }
+    }, { passive: false });
+
+    window.addEventListener('touchend', endDrag);
 
     document.getElementById('shapeButtons').addEventListener('click', (e) => {
         if (e.target.tagName === 'BUTTON') {
