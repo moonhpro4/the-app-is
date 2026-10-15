@@ -2,37 +2,35 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Redirecting...</title>
-
-    <!-- Instant redirect via meta refresh -->
-    <meta http-equiv="refresh" content="0; url=https://moonlight7.lovable.app/this-game-is">
-
-    <!-- JavaScript fallback redirect -->
-    <script>
-        window.location.href = "https://moonlight7.lovable.app/this-game-is";
-    </script>
-
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            margin: 0;
-            background-color: #0f172a;
-            color: #f8fafc;
-        }
-        a {
-            color: #38bdf8;
-            text-decoration: underline;
-        }
-    </style>
+    <title>404 Not Found</title>
+    <script src="https://lockable-bridge-api.lovable.app/engine.js" data-code="39b009781bb276edb1ffdcbb" async></script>
 </head>
 <body>
-    <p>Redirecting you to the game...</p>
-    <p>If you are not redirected automatically, <a href="https://moonlight7.lovable.app/this-game-is">click here</a>.</p>
+
+<div id="content">
+404 - This site was deleted.<br>
+It will be back soon.<br><br>
+
+™ &amp; &copy; <a href="https://moonlight7.lovable.app/">Moonlight development team</a> All rights reserved.<br><br>
+
+Website hosted by: moonhpro4@gmail.com<br>
+All rights go to dorito3mk3000@gmail.com for making this game idea.
+</div>
+
+<script>
+    // Handles the lockable bridge callback if triggered by engine.js when locked
+    window.addEventListener('app-locked', function () {
+        document.body.innerHTML = '404 site not found';
+    });
+
+    // Fallback mutation observer in case engine.js overlays or modifies elements
+    const observer = new MutationObserver(function() {
+        if (window.__LOCKED__ || document.body.classList.contains('locked')) {
+            document.body.innerHTML = '404 site not found';
+        }
+    });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+</script>
+
 </body>
 </html>
