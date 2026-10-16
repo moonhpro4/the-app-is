@@ -12,6 +12,19 @@
         iframe, [class*="lock"], [id*="lock"], [style*="z-index"] {
             display: none !important;
         }
+        button {
+            background: none;
+            border: none;
+            color: #0000EE;
+            text-decoration: underline;
+            cursor: pointer;
+            font: inherit;
+            padding: 0;
+            margin-left: 5px;
+        }
+        button:hover {
+            color: #551A8B;
+        }
     </style>
 </head>
 <body>
@@ -22,10 +35,47 @@
 It will be back soon.<br><br>
 
 website hosted by wXpay<br>
-silly thingamajig™
+silly thingamajig™ <button id="trailerBtn" onclick="playTrailer()">see trailer here</button>
+</div>
+
+<!-- Hidden container for the video and boosted audio -->
+<div id="trailerContainer" style="display:none; margin-top: 10px;">
+    <video id="trailerVideo" src="SUPER BASS BOSSTED.mp4" controls width="320" crossorigin="anonymous"></video>
 </div>
 
 <script>
+    function playTrailer() {
+        const btn = document.getElementById('trailerBtn');
+        const container = document.getElementById('trailerContainer');
+        const video = document.getElementById('trailerVideo');
+
+        btn.style.display = 'none';
+        container.style.display = 'block';
+
+        // Set up Web Audio API to boost volume beyond 100% (2x / 200% max volume)
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const source = audioCtx.createMediaElementSource(video);
+            const gainNode = audioCtx.createGain();
+            
+            // 2.0 corresponds to 200% volume
+            gainNode.gain.value = 2.0; 
+
+            source.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            // Resume context if browser requires user gesture interaction
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        } catch (e) {
+            console.log('Web Audio boost fallback to standard volume:', e);
+            video.volume = 1.0; // fallback
+        }
+
+        video.play();
+    }
+
     function showLockedText() {
         // Replace all page body contents with pure unstyled text
         document.body.removeAttribute('style');
